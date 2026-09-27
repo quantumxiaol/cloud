@@ -28,7 +28,11 @@
     "node": ">=22.12.0"
   },
   "dependencies": {
+    "@takram/three-atmosphere": "0.19.1",
+    "@takram/three-clouds": "0.7.6",
+    "@takram/three-geospatial": "0.9.1",
     "lil-gui": "^0.21.0",
+    "postprocessing": "^6.39.5",
     "stats.js": "^0.17.0",
     "three": "^0.186.1"
   }

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>算法来源与许可 · cloud</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        color: #2d4752;
+        background: #f4f7f6;
+        line-height: 1.8;
+      }
+      body {
+        max-width: 54rem;
+        margin: 0 auto;
+        padding: clamp(1.25rem, 5vw, 4rem);
+      }
+      a {
+        color: #396777;
+        text-underline-offset: 0.2em;
+      }
+      a:hover {
+        color: #1c4250;
+      }
+      a:focus-visible {
+        outline: 2px solid #396777;
+        outline-offset: 4px;
+      }
+      h1 {
+        font-size: clamp(1.6rem, 5vw, 2.4rem);
+      }
+      h1,
+      h2 {
+        line-height: 1.3;
+      }
+      section {
+        margin: 2rem 0;
+        padding-top: 1rem;
+        border-top: 1px solid #d2dfdf;
+      }
+      li {
+        margin: 0.75rem 0;
+      }
+      ul {
+        padding-left: 1.4rem;
+      }
+      p,
+      li {
+        overflow-wrap: anywhere;
+      }
+      code {
+        font-size: 0.9em;
+      }
+      footer {
+        margin-top: 2.5rem;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a href="../lab/">← 返回动态云实验</a>
+      <h1>算法来源与许可</h1>
+      <p>cloud · 动态云实验的依赖、参考实现与资产出处。</p>
+    </header>
+    <main lang="en">
+      <p>
+        The <code>/lab/</code> page is an experiment, not ten scientifically validated cloud
+        presets.
+      </p>
+      <section aria-labelledby="takram">
+        <h2 id="takram">Takram</h2>
+        <ul>
+          <li>
+            Repository:
+            <a href="https://github.com/takram-design-engineering/three-geospatial"
+              >three-geospatial</a
+            >.
+          </li>
+          <li>
+            <code>@takram/three-clouds</code> 0.7.6, <code>@takram/three-atmosphere</code> 0.19.1,
+            <code>@takram/three-geospatial</code> 0.9.1.
+          </li>
+          <li>MIT license: <a href="takram/LICENSE.txt" download>download LICENSE.txt</a>.</li>
+          <li>Cloud assets: revision <code>45a1c6c1bb9fd38b3680fd120795ff4c32df68ff</code>.</li>
+          <li>
+            Atmosphere lookup tables: revision
+            <code>eac103980f20c0956f2d3215833e73514be08462</code>.
+          </li>
+          <li>STBN data: revision <code>9627216cc50057994c98a2118f3c4a23765d43b9</code>.</li>
+          <li>
+            STBN texture data originates from NVIDIA's
+            <a href="https://github.com/NVIDIA-RTX/STBN">Spatiotemporal Blue Noise SDK</a>. Its
+            upstream <a href="takram/STBN-LICENSE.txt" download>license</a> is included separately;
+            do not assume this asset is covered by Takram's MIT license.
+          </li>
+          <li>
+            Volume rendering follows the official vanilla Three.js example. The application
+            integrates wind and evolution offsets separately, with explicit pause, time scaling and
+            stepping.
+          </li>
+        </ul>
+      </section>
+      <section aria-labelledby="photon">
+        <h2 id="photon">Photon</h2>
+        <ul>
+          <li>Copyright © 2021–2025 Benjamin Stott (SixthSurge).</li>
+          <li>Repository: <a href="https://github.com/sixthsurge/photon">Photon</a>.</li>
+          <li>Source revision: <code>15458c0937f8647c37eb6a501bef5eb3bf3da31b</code>.</li>
+          <li>
+            Source files: <code>shaders/include/sky/clouds/cirrus.glsl</code>,
+            <code>common.glsl</code>, <code>shaders/include/utility/random.glsl</code>,
+            <code>shaders/image/noise.png</code>.
+          </li>
+          <li>
+            Full custom license: <a href="photon/LICENSE.txt" download>download LICENSE.txt</a>.
+            Photon code/assets are not MIT licensed. Redistribution is subject to the upstream
+            license, including its monetization restrictions.
+          </li>
+          <li>
+            <code>src/lab/photon.frag.glsl</code> adapts the cirrus and cirrocumulus density
+            functions and curl noise, retaining the original noise texture. Independent evolution
+            time, browser coordinates, a thin layer and simplified lighting are adaptations. This
+            does not reproduce Photon's complete lighting pipeline or imply identical visuals.
+          </li>
+          <li>
+            Gradient-noise derivative credited upstream to
+            <a href="https://iquilezles.org/articles/gradientnoise/">Inigo Quilez</a>.
+          </li>
+          <li>
+            Hash credited upstream to
+            <a href="https://www.shadertoy.com/view/4djSRW">Dave Hoskins</a>.
+          </li>
+        </ul>
+      </section>
+      <p>
+        All reference assets are served locally; the experiment makes no runtime requests to GitHub
+        or other external asset hosts.
+      </p>
+    </main>
+    <footer><a href="NOTICE.md" download>下载 Markdown 说明</a> · 许可证文件保持上游原文。</footer>
+  </body>
+</html>

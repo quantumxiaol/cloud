@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cloud · 形态对照</title>
+  <style>
+    body {
+      margin: 24px;
+      background: #edf2f3;
+      color: #283e48;
+      font: 15px system-ui;
+    }
+    header {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0;
+    }
+    input {
+      width: 100px;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+    figure {
+      margin: 0;
+      background: white;
+    }
+    figcaption {
+      padding: 10px 14px;
+    }
+    img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 2.2;
+    }
+    canvas {
+      position: fixed;
+      left: -2000px;
+      top: 0;
+      width: 1100px;
+      height: 500px;
+    }
+    output {
+      font-size: 13px;
+    }
+  </style>
+  <header>
+    <h1>五种云 · 同视角形态对照</h1>
+    <label>种子 <input id="seed" type="number" value="20260927" /></label>
+    <label>时间 <input id="time" type="number" value="0" /></label>
+    <label
+      >云量 <input id="density" type="number" value="0.65" min="0.2" max="1" step="0.05"
+    /></label>
+    <button id="render" disabled>重新生成</button>
+    <output id="status">正在初始化…</output>
+  </header>
+  <main></main>
+  <canvas></canvas>
+  <script type="module">
+    import { CloudRenderer } from '/src/engine/CloudRenderer.ts'
+    import { clouds } from '/src/data/clouds.ts'
+    const list = clouds.filter((c) => [3, 4, 7, 8, 9].includes(c.kind))
+    const button = document.querySelector('#render')
+    const status = document.querySelector('#status')
+    const urls = []
+    const renderer = new CloudRenderer(
+      document.querySelector('canvas'),
+      (message) => {
+        status.textContent = message
+      },
+      () => render(),
+    )
+    renderer.setPaused(true)
+    renderer.setQuality('high')
+    async function render() {
+      button.disabled = true
+      status.textContent = '渲染中…'
+      urls.forEach((url) => URL.revokeObjectURL(url))
+      urls.length = 0
+      document.querySelector('main').replaceChildren()
+      for (const cloud of list) {
+        renderer.setCloud(cloud, true)
+        renderer.setWeather(
+          Number(document.querySelector('#seed').value),
+          1,
+          0.2,
+          Number(document.querySelector('#density').value),
+        )
+        renderer.time = Number(document.querySelector('#time').value)
+        const url = URL.createObjectURL(await renderer.capture())
+        urls.push(url)
+        const figure = document.createElement('figure')
+        const caption = document.createElement('figcaption')
+        caption.textContent = `${cloud.name} · ${cloud.latin}`
+        const image = new Image()
+        image.alt = cloud.name
+        image.src = url
+        figure.append(image, caption)
+        document.querySelector('main').append(figure)
+      }
+      button.disabled = false
+      status.textContent = '已完成 · 与主页面共用渲染器，无文字遮挡'
+    }
+    button.addEventListener('click', render)
+  </script>
+</html>
