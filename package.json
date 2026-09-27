@@ -1,0 +1,35 @@
+{
+  "name": "cloud",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/stats.js": "^0.17.4",
+    "@types/three": "^0.186.0",
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.9",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.70.1",
+    "vite": "^8.3.0",
+    "vite-plugin-glsl": "^1.6.1",
+    "vitest": "^5.0.2"
+  },
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "lil-gui": "^0.21.0",
+    "stats.js": "^0.17.0",
+    "three": "^0.186.1"
+  }
+}
