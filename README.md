@@ -21,6 +21,7 @@ pnpm lint
 ## 看云
 
 - 十个云属、按云族筛选、云种和变种资料。
+- 导航中的“动态云实验”进入 `/lab/`，可体验另一套云渲染与独立演化控制。
 - 风速、云量、日光、画质可调；暂停、随机种子、沉浸模式、PNG 导出。
 - 每天有一个默认种子；分享链接保存云属、种子、天气参数、演化时间及暂停状态。
 - `←` / `→` 切换云属；空格暂停；`Esc` 返回。操作输入框或按钮时快捷键不抢占焦点。
@@ -31,13 +32,15 @@ pnpm lint
 
 ### 动态云实验
 
-运行 `pnpm dev` 后打开 `/lab/`。该页面也会构建为 `dist/lab/index.html`，可随 GitHub Pages 发布到 `/cloud/lab/`。
+从主页导航点击“动态云实验”，或运行 `pnpm dev` 后直接打开 `/lab/`。该页面也会构建为 `dist/lab/index.html`，可随 GitHub Pages 发布到 `/cloud/lab/`。
+
+主页与 lab 是两个独立页面：主页提供十云属图鉴、分享和导出，使用轻量着色器，其中卷积云参考 Photon 的密度函数；lab 提供体积云、卷云、卷积云三种实验模式，使用下面列出的参考实现，支持独立调节风速和演化速度。两页都会实时运动和变化，但渲染模型与参数并不相同，主页的卷积云复用了 Photon 的部分算法，其余云属仍使用各自的主页渲染。
 
 - 体积云使用 `@takram/three-clouds`，大气使用 `@takram/three-atmosphere`。
 - 卷云与卷积云移植 Photon 的密度函数、Curl Noise 和多尺度侵蚀，保留原始噪声纹理；采用薄层投影与简化光照，效果不等同于 Photon 完整渲染器。
 - 风速、演化速度、云量独立控制，支持暂停、前进 30 秒、时间加速与仰角调整。风速为零时仍可观察原地演化。这里的演化是噪声场随时间变化，不是流体或天气数值模拟。
-- 参考纹理约 12 MB，均随站点本地提供，首次访问需要加载。主页面不加载这些资源。
-- 这是一页用于评估效果的独立实验，尚未替换首页十种云的渲染。
+- 参考纹理约 12 MB，均随站点本地提供，首次访问需要加载。主页面只复用其中约 741 KiB 的 Photon 噪声纹理，不加载 Takram 体积与大气资源。
+- lab 仍是独立实验页，不等同于首页十云属渲染。
 - 依赖版本、资产来源和 Photon 自定义许可证见 [第三方说明](public/reference/NOTICE.md)。
 
 ### 当前图鉴
@@ -47,13 +50,14 @@ Vite + TypeScript + Three.js + 自写 GLSL ES 3.0，无后端、无云照片。
 - `src/engine/noise.ts`：一次性生成 64³ 可平铺的 value-fBm / Worley 噪声纹理。
 - `src/shaders/sky.frag.glsl`：积云、积雨云、层积云和高积云采用体积 ray marching、太阳方向的多点遮挡采样和 Beer–Lambert 透射；层云、雨层云和高云采用轻量分层噪声。风平移和时间域扰动共同改变形态。
 - 层积云与高积云分别定义三维密度场，从地面仰视采样。层积云采用较厚、底面起伏、相互融合的云层；高积云采用较薄的高度剖面、分散的云块和局部成片的排列。两者的厚度、云底、覆盖场和光照分别处理。
-- 卷云用三次 Bézier 曲线构造带钩的云簇，再以细丝噪声打散轮廓和尾迹；卷积云积分数层高频密度，生成聚成薄片的不规则小云粒；卷层云使用半透明的纤维云纱，日晕只是微弱的附加光效。雨层云使用不透光的灰色云幕、局部低垂碎云与降水雾幕。主画面与缩略图共用这些形态函数。
+- 积雨云使用独立的大尺度密度场和取景范围，以宽阔暗底、多簇云塔和偏向一侧的云砧表现垂直发展；手机取景单独调整，避免直接沿用积云的小范围构图。
+- 卷云用三次 Bézier 曲线构造带钩的云簇，再以细丝噪声打散轮廓和尾迹；卷积云见下面的独立薄层实现；卷层云使用半透明的纤维云纱，日晕只是微弱的附加光效。雨层云使用不透光的灰色云幕、局部低垂碎云与降水雾幕。主画面与缩略图共用这些形态函数。
+- `src/shaders/cirrocumulus.glsl`：参考 Photon 的 Curl Noise 和多尺度侵蚀，保留原始噪声纹理；用独立覆盖场组织薄云片，以局部弯曲波纹排列不规则云粒。采用向上 62°、垂直视场 50° 的地面视角，在约 7 km 高处沿 120 m 薄层进行四点光学厚度积分；连续高度剖面和 mipmap 过滤用于柔化边缘、减少小尺寸下的采样闪烁。这是主页的艺术化适配，不是 Photon 完整大气渲染器。
 - `src/engine/CloudRenderer.ts`：同一个 WebGL 上下文生成主天空与图鉴缩略图；36 / 56 / 80 步画质；自动降低分辨率；上下文丢失恢复。
 - `src/data/clouds.ts`：十个云属的数据与渲染预设。
 - `src/lib/state.ts`：经过范围校验的 URL 状态。
 
 当前为云属层面的艺术模拟，不是数值天气模型，也不是物理精确的大气散射。云种标签展示辨识资料，暂不单独改变渲染预设。没有闪电闪光，以保持安静的观看体验。
-
 
 ## 云资料
 
@@ -85,7 +89,6 @@ Vite + TypeScript + Three.js + 自写 GLSL ES 3.0，无后端、无云照片。
 - **层积云**：[Houze 云图集](https://atmos.uw.edu/~gcg/Atlas/stratocu.html)。本预设选择底面有阴影、云块常相互连接的厚层形态。
 - **高积云**：[英国气象局中云实拍与说明](https://weather.metoffice.gov.uk/learn-about/weather/types-of-weather/clouds/mid-level-clouds)、[Houze 云图集](https://atmos.uw.edu/~gcg/Atlas/altocu.html)。本预设选择带灰色底部、薄而分散的云块。高积云和层积云的实际形态也可能相似，不能只凭这一组预设辨识所有情况。
 - **卷云**：[WMO 定义](https://cloudatlas.wmo.int/en/clouds-genera-cirrus.html)、[钩卷云](https://cloudatlas.wmo.int/en/clouds-species-uncinus.html)、[英国气象局高云实拍与说明](https://weather.metoffice.gov.uk/learn-about/weather/types-of-weather/clouds/high-clouds)。当前预设突出钩状头部与渐散的纤维尾迹；并非所有卷云都有钩。
-- **卷积云**：[WMO 定义](https://cloudatlas.wmo.int/en/clouds-genera-cirrocumulus.html)、[华盛顿大学 Houze 云图集实拍](https://atmos.uw.edu/~gcg/Atlas/phot_cicu01.html)。细小、少阴影的颗粒聚成薄片，可有涟漪排列；多数云粒视角小于 1°。
+- **卷积云**：[WMO 定义](https://cloudatlas.wmo.int/en/clouds-genera-cirrocumulus.html)、[WMO 层状波状卷积云实拍组](https://cloudatlas.wmo.int/en/imgviewer-5091.txt)、[华盛顿大学 Houze 云图集实拍](https://atmos.uw.edu/~gcg/Atlas/phot_cicu01.html)。细小、少阴影的颗粒聚成薄片，可有涟漪排列；多数云粒视角小于 1°。
 - **卷层云**：[Houze 云图集](https://atmos.uw.edu/~gcg/Atlas/cist.html)。表现覆盖天空的乳白色薄纱与纤维层次，透出日光；日晕不能代替云体。
 - **雨层云**：[WMO 定义](https://cloudatlas.wmo.int/en/clouds-genera-nimbostratus.html)、[Houze 云图集实拍](https://atmos.uw.edu/~gcg/Atlas/ns.html)。连续、厚重、漫散的灰暗云层遮蔽太阳，降水模糊云底；下方可有更暗的碎云。保持柔和层次，不以强烈翻卷的积状云块代替。
-

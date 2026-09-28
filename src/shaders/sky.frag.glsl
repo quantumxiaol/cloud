@@ -61,7 +61,42 @@ float altocumulusDensity(vec3 p) {
   return smoothstep(0.41 - (uDensity - 0.65) * 0.12, 0.55, shape) * profile * 2.1;
 }
 
+// A mature storm viewed from outside: a broad rain base, several rising
+// turrets and an asymmetric spreading anvil. Keep its bounds independent
+// from the much smaller fair-weather cumulus volume.
+float cumulonimbusDensity(vec3 p, vec3 params) {
+  vec3 q = p;
+  q.x -= sin(uTime * 0.003 * uWind) * 1.5;
+  vec3 seed = vec3(uSeed * 0.173, uSeed * 0.071, uSeed * 0.113);
+  vec3 flow = q * 0.115 + seed + vec3(uTime * 0.0009 * uWind, uTime * 0.0005, 0.0);
+  float billow = fbm(flow);
+  float lobes = texture(uNoise, flow * 1.65).g;
+  float detail = noise(flow * 5.3);
+  q += (vec3(noise(flow), noise(flow + 0.31), noise(flow + 0.67)) - 0.5) * 0.6;
+
+  float body = ellipsoid(q, vec3(4.7, 1.9, -2.0), vec3(7.0, 1.35, 3.6));
+  body = max(body, ellipsoid(q, vec3(5.0, 4.9, -2.6), vec3(3.5, 4.1, 3.2)));
+  body = max(body, ellipsoid(q, vec3(2.7, 4.0, -1.0), vec3(2.5, 2.9, 2.5)));
+  body = max(body, ellipsoid(q, vec3(7.3, 6.2, -2.0), vec3(2.6, 3.2, 2.8)));
+  body = max(body, ellipsoid(q, vec3(4.5, 7.7, -2.2), vec3(2.7, 2.8, 2.8)));
+  body = max(body, ellipsoid(q, vec3(2.8, 6.3, 0.0), vec3(1.7, 1.9, 1.9)));
+  body = max(body, ellipsoid(q, vec3(6.0, 8.6, -0.7), vec3(2.0, 2.0, 2.1)));
+  body = max(body, ellipsoid(q, vec3(6.8, 8.3, -2.9), vec3(4.9, 2.0, 3.0)));
+  float anvil = ellipsoid(q, vec3(5.4, 9.6, -3.4), vec3(7.8, 1.45, 3.8));
+  anvil = max(anvil, ellipsoid(q, vec3(10.5, 9.9, -3.6), vec3(4.0, 0.72, 3.0)));
+  anvil = max(anvil, ellipsoid(q, vec3(-0.5, 9.5, -3.1), vec3(2.5, 0.75, 2.8)));
+  // Finer horizontal ice texture at the top; rounder billows in the towers.
+  float ice = noise(vec3(q.x * 0.18, q.y * 1.6, q.z * 0.25) + seed);
+  anvil += (ice - 0.5) * 0.22;
+  body = max(body, anvil);
+  body = max(body, ellipsoid(q, vec3(5.7, 10.3, -2.9), vec3(1.9, 1.45, 2.0)));
+  body += (billow - 0.48) * 1.65 + (lobes - 0.45) * 0.65 + (detail - 0.5) * 0.2;
+  body += (uDensity - 0.65) * 0.5;
+  return smoothstep(0.0, 0.65, body) * smoothstep(0.55, 1.15, p.y) * params.x * 1.7;
+}
+
 float densityAt(vec3 p, int kind, vec3 params) {
+  if (kind == 1) return cumulonimbusDensity(p, params);
   if (kind == 3) return stratocumulusDensity(p);
   if (kind == 4) return altocumulusDensity(p);
   vec3 q = p;
@@ -85,13 +120,6 @@ float densityAt(vec3 p, int kind, vec3 params) {
     body += (base - 0.5) * 1.35 + (cell - 0.5) * 0.5;
     body -= (1.0 - detail) * 0.16;
     body *= smoothstep(0.6, 1.0, q.y);
-  } else if (kind == 1) {
-    body = ellipsoid(q, vec3(1.9, 2.3, -1.0), vec3(2.8, 2.1, 2.0));
-    body = max(body, ellipsoid(q, vec3(2.0, 4.2, -1.7), vec3(1.65, 2.4, 1.8)));
-    body = max(body, ellipsoid(q, vec3(2.4, 5.8, -2.2), vec3(4.0, 0.85, 2.0)));
-    body = max(body, ellipsoid(q, vec3(0.0, 1.6, 0.2), vec3(3.0, 1.05, 2.1)));
-    body += (base - 0.52) * 1.5 + (cell - 0.5) * 0.5 - (1.0 - detail) * 0.14;
-    body *= smoothstep(0.45, 0.8, q.y);
   } else body = 0.0;
   body += (params.y - 0.55) * 0.55 + (uDensity - 0.65) * 0.6;
   float edge = 1.0 - smoothstep(9.0, 12.0, abs(p.x));
@@ -119,6 +147,11 @@ vec3 volumeCloud(vec2 uv, vec3 sky, int kind, vec3 params) {
   bool cloudField = kind == 3 || kind == 4;
   float entry = 8.0;
   float exitDistance = 29.0;
+  if (kind == 1) {
+    ro = vec3(uPointer.x * 0.35 + mobile * 5.0, 5.9 + uPointer.y * 0.18, 12.5 + mobile * 8.0);
+    entry = 6.0;
+    exitDistance = 25.0 + mobile * 8.0;
+  }
   if (cloudField) {
     ro = vec3(uPointer * 0.1, 0.0).xzy;
     vec3 forward = vec3(0.0, 0.766, -0.643);
@@ -136,7 +169,7 @@ vec3 volumeCloud(vec2 uv, vec3 sky, int kind, vec3 params) {
   for (int i = 0; i < 80; i++) {
     if (i >= uSteps || transmittance < 0.015) break;
     vec3 p = ro + rd * t;
-    if (p.y > 0.0 && p.y < 7.2) {
+    if (p.y > 0.0 && p.y < (kind == 1 ? 13.0 : 7.2)) {
       float d = densityAt(p, kind, params);
       if (d > 0.008) {
         float shadow = densityAt(p + sunDir * 0.35, kind, params) * 0.35;
@@ -145,6 +178,10 @@ vec3 volumeCloud(vec2 uv, vec3 sky, int kind, vec3 params) {
         float sunlight = exp(-shadow * 1.65);
         float heightLight = kind == 3 ? smoothstep(2.2, 5.3, p.y) : kind == 4 ? smoothstep(5.6, 6.9, p.y) : smoothstep(0.5, 4.5, p.y);
         vec3 ambient = mix(vec3(0.42, 0.53, 0.63), vec3(0.76, 0.83, 0.88), heightLight);
+        if (kind == 1) {
+          heightLight = smoothstep(1.0, 10.0, p.y);
+          ambient = mix(vec3(0.30, 0.38, 0.48), vec3(0.80, 0.86, 0.92), heightLight);
+        }
         if (kind == 3) ambient = mix(vec3(0.58, 0.64, 0.70), vec3(0.78, 0.83, 0.88), heightLight);
         ambient *= 1.0 - params.z * 0.35;
         float silver = pow(max(dot(rd, sunDir), 0.0), 8.0) * 0.16;
@@ -209,27 +246,7 @@ float cirrusOpacity(vec2 p) {
   return opacity;
 }
 
-// A thin, broken high sheet. Integrate several turbulent density slices;
-// no nearest-cell distance field, circular stamps or geometric lattice.
-float cirrocumulusOpacity(vec2 p, vec2 uv) {
-  float depth = 0.85 + uv.y * 0.65;
-  vec2 sheet = vec2(p.x / depth, 1.1 / depth);
-  float z = uSeed * 0.173 + uTime * 0.001;
-  sheet = mat2(0.96, -0.28, 0.28, 0.96) * sheet;
-  vec2 drift = vec2(uSeed * 0.071, uSeed * 0.113);
-  vec2 q = sheet + drift;
-  float weather = fbm(vec3(p * vec2(0.45, 0.65), z + 0.7));
-  float coverage = smoothstep(0.32 - (uDensity - 0.65) * 0.15, 0.57, weather);
-  float waves = noise(vec3(q * vec2(0.6, 6.0), z));
-  float opticalDepth = 0.0;
-  for (int i = 0; i < 4; i++) {
-    vec3 samplePoint = vec3(q * vec2(13.0, 19.5), z + float(i) * 0.019);
-    float shape = noise(samplePoint) * 0.58 + noise(samplePoint * 2.17 + 0.37) * 0.29 + noise(samplePoint * 4.1 + 0.71) * 0.13;
-    shape += (waves - 0.5) * 0.18;
-    opticalDepth += smoothstep(0.40, 0.61, shape) * 0.65;
-  }
-  return (1.0 - exp(-opticalDepth)) * coverage;
-}
+// @cirrocumulus
 
 vec3 cirrostratusCloud(vec2 uv, vec2 p, vec3 sky) {
   float z = uSeed * 0.173 + uTime * 0.001;
@@ -292,7 +309,7 @@ vec3 layeredCloud(vec2 uv, vec3 sky, int kind, vec3 params) {
   if (kind == 7) {
     alpha = cirrusOpacity(p);
   } else if (kind == 8) {
-    alpha = cirrocumulusOpacity(p, uv);
+    alpha = cirrocumulusOpacity(uv);
   } else {
     float billow = fbm(vec3(p.x * 0.34, p.y * 1.2, q.z));
     alpha = clamp(params.y + (billow - 0.5) * 0.7, 0.0, 0.99);

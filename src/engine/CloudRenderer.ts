@@ -2,6 +2,7 @@ import {
   Data3DTexture,
   GLSL3,
   LinearFilter,
+  LinearMipmapLinearFilter,
   Mesh,
   OrthographicCamera,
   PlaneGeometry,
@@ -9,6 +10,8 @@ import {
   RepeatWrapping,
   RGFormat,
   Scene,
+  Texture,
+  TextureLoader,
   UnsignedByteType,
   Vector2,
   Vector3,
@@ -19,6 +22,8 @@ import type { Cloud } from '../data/clouds'
 import { createNoiseData, hash3 } from './noise'
 import vertexShader from '../shaders/sky.vert.glsl?raw'
 import fragmentShader from '../shaders/sky.frag.glsl?raw'
+import cirrocumulusShader from '../shaders/cirrocumulus.glsl?raw'
+import photonNoiseUrl from '/reference/photon/noise.png?url'
 
 export type Quality = 'auto' | 'high' | 'low'
 
@@ -27,6 +32,10 @@ export class CloudRenderer {
   private scene = new Scene()
   private camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1)
   private texture: Data3DTexture
+  private photonTexture: Texture | null = null
+  private assets: Promise<void>
+  private assetsReady = false
+  private disposed = false
   private material: RawShaderMaterial
   private geometry = new PlaneGeometry(2, 2)
   private observer: ResizeObserver
@@ -48,6 +57,7 @@ export class CloudRenderer {
   paused = false
   private uniforms = {
     uNoise: { value: null as Data3DTexture | null },
+    uPhotonNoise: { value: null as Texture | null },
     uResolution: { value: new Vector2(1, 1) },
     uPointer: { value: new Vector2() },
     uTime: { value: 0 },
@@ -88,13 +98,33 @@ export class CloudRenderer {
     this.uniforms.uNoise.value = this.texture
     this.material = new RawShaderMaterial({
       vertexShader,
-      fragmentShader,
+      fragmentShader: fragmentShader.replace('// @cirrocumulus', cirrocumulusShader),
       glslVersion: GLSL3,
       uniforms: this.uniforms,
       depthTest: false,
       depthWrite: false,
     })
     this.scene.add(new Mesh(this.geometry, this.material))
+    this.assets = new TextureLoader().loadAsync(photonNoiseUrl).then(
+      (texture) => {
+        if (this.disposed) {
+          texture.dispose()
+          return
+        }
+        texture.wrapS = texture.wrapT = RepeatWrapping
+        texture.minFilter = LinearMipmapLinearFilter
+        texture.magFilter = LinearFilter
+        texture.flipY = false
+        texture.generateMipmaps = true
+        this.photonTexture = texture
+        this.uniforms.uPhotonNoise.value = texture
+        this.assetsReady = true
+        this.dirty = true
+      },
+      () => {
+        if (!this.disposed) this.onError('云形纹理未能加载，请重新加载再试。云图鉴仍可阅读。')
+      },
+    )
     this.observer = new ResizeObserver(() => this.resize())
     this.observer.observe(canvas)
     canvas.addEventListener('webglcontextlost', this.handleContextLost)
@@ -222,7 +252,9 @@ export class CloudRenderer {
     }
   }
 
-  capture(): Promise<Blob> {
+  async capture(): Promise<Blob> {
+    await this.assets
+    if (!this.assetsReady || this.disposed) throw new Error('云形纹理尚未就绪')
     this.renderer.render(this.scene, this.camera)
     return new Promise((resolve, reject) => {
       this.renderer.domElement.toBlob(
@@ -234,7 +266,12 @@ export class CloudRenderer {
 
   private tick = (now: number) => {
     this.frame = requestAnimationFrame(this.tick)
-    if (this.contextLost || document.hidden || (!this.visible && !this.thumbnailQueue.length)) {
+    if (
+      !this.assetsReady ||
+      this.contextLost ||
+      document.hidden ||
+      (!this.visible && !this.thumbnailQueue.length)
+    ) {
       this.previousFrame = now
       return
     }
@@ -292,6 +329,7 @@ export class CloudRenderer {
   private handleContextRestored = () => {
     this.contextLost = false
     this.texture.needsUpdate = true
+    if (this.photonTexture) this.photonTexture.needsUpdate = true
     this.material.needsUpdate = true
     this.dirty = true
     this.ready = false
@@ -299,6 +337,7 @@ export class CloudRenderer {
   }
 
   dispose() {
+    this.disposed = true
     cancelAnimationFrame(this.frame)
     this.observer.disconnect()
     document.removeEventListener('visibilitychange', this.handleVisibility)
@@ -307,6 +346,7 @@ export class CloudRenderer {
     this.geometry.dispose()
     this.material.dispose()
     this.texture.dispose()
+    this.photonTexture?.dispose()
     this.renderer.dispose()
   }
 }

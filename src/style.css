@@ -28,7 +28,7 @@ html {
 }
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: min(320px, 100%);
 }
 button,
 input,
@@ -128,6 +128,7 @@ p {
 }
 .nav-link {
   position: relative;
+  white-space: nowrap;
   font-size: 13px;
   color: #7a898e;
   padding: 30px 0;
@@ -1174,7 +1175,7 @@ kbd {
     font-size: 31px;
   }
   .site-header nav {
-    gap: 22px;
+    gap: clamp(10px, 3vw, 22px);
     margin-left: auto;
   }
   .nav-link {
@@ -1402,6 +1403,15 @@ kbd {
   }
   .about-shortcuts {
     gap: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .site-header {
+    padding-inline: 14px;
+  }
+  .brand > .icon {
+    display: none;
   }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -18,7 +18,7 @@ let isImmersive = false
 $('#app').innerHTML = `
   <header class="site-header">
     <a class="brand" href="#" aria-label="cloud 首页">${icon('cloud')}<span>cloud<span class="brand-dot">.</span></span><span class="brand-caption">一部会呼吸的云图鉴</span></a>
-    <nav aria-label="主导航"><a class="nav-link active" href="#sky" data-scroll="sky">云端漫游</a><a class="nav-link" href="#atlas" data-scroll="atlas">云的图鉴</a><button class="nav-link" id="about-button">关于 cloud</button></nav>
+    <nav aria-label="主导航"><a class="nav-link active" href="#sky" data-scroll="sky">云端漫游</a><a class="nav-link" href="#atlas" data-scroll="atlas">云的图鉴</a><a class="nav-link" href="./lab/">动态云实验</a><button class="nav-link" id="about-button">关于 cloud</button></nav>
     <button class="quiet-button escape-button" id="immerse">放空一下 ${icon('diagonal')}</button>
   </header>
   <main>

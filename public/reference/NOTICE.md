@@ -1,4 +1,4 @@
-# Dynamic cloud reference implementation
+# Cloud rendering references
 
 The `/lab/` page is an experiment, not ten scientifically validated cloud presets.
 
@@ -21,7 +21,8 @@ The `/lab/` page is an experiment, not ten scientifically validated cloud preset
 - Source files: `shaders/include/sky/clouds/cirrus.glsl`, `common.glsl`, `shaders/include/utility/random.glsl`, `shaders/image/noise.png`.
 - Full custom license: [photon/LICENSE.txt](photon/LICENSE.txt). Photon code/assets are not MIT licensed. Redistribution is subject to the upstream license, including its monetization restrictions.
 - `src/lab/photon.frag.glsl` adapts the cirrus and cirrocumulus density functions and curl noise, retaining the original noise texture. Independent evolution time, browser coordinates, a thin layer and simplified lighting are adaptations. This does not reproduce Photon's complete lighting pipeline or imply identical visuals.
+- `src/shaders/cirrocumulus.glsl` also adapts Photon density, curl noise and multi-scale erosion for the home atlas, using the same original noise texture. Separate coverage, local ripple organisation, ground-view projection, a smooth height profile, four-sample optical-depth integration and mipmap filtering are project adaptations. Home lighting remains simplified; it is not the complete Photon renderer.
 - Gradient-noise derivative credited upstream to Inigo Quilez: https://iquilezles.org/articles/gradientnoise/
 - Hash credited upstream to Dave Hoskins: https://www.shadertoy.com/view/4djSRW
 
-All reference assets are served locally; the experiment makes no runtime requests to GitHub or other external asset hosts.
+All reference assets are served locally; the home atlas and experiment make no runtime requests to GitHub or other external asset hosts.

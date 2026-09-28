@@ -53,7 +53,14 @@
     }
   </style>
   <header>
-    <h1>五种云 · 同视角形态对照</h1>
+    <h1>云形态对照 · 各云属默认视角</h1>
+    <label
+      >对照组
+      <select id="suite">
+        <option value="genera">云属</option>
+        <option value="cc">卷积云回归</option>
+      </select></label
+    >
     <label>种子 <input id="seed" type="number" value="20260927" /></label>
     <label>时间 <input id="time" type="number" value="0" /></label>
     <label
@@ -67,7 +74,7 @@
   <script type="module">
     import { CloudRenderer } from '/src/engine/CloudRenderer.ts'
     import { clouds } from '/src/data/clouds.ts'
-    const list = clouds.filter((c) => [3, 4, 7, 8, 9].includes(c.kind))
+    const list = [8, 1, 3, 4, 7, 9].map((kind) => clouds.find((c) => c.kind === kind))
     const button = document.querySelector('#render')
     const status = document.querySelector('#status')
     const urls = []
@@ -86,20 +93,31 @@
       urls.forEach((url) => URL.revokeObjectURL(url))
       urls.length = 0
       document.querySelector('main').replaceChildren()
-      for (const cloud of list) {
+      const seed = Number(document.querySelector('#seed').value)
+      const time = Number(document.querySelector('#time').value)
+      const density = Number(document.querySelector('#density').value)
+      const cases =
+        document.querySelector('#suite').value === 'cc'
+          ? [
+              { seed: 20260928, time: 91.28, density: 0.65, quality: 'high' },
+              { seed: 20260927, time: 0, density: 0.65, quality: 'high' },
+              { seed: 41, time: 30, density: 0.65, quality: 'high' },
+              { seed: 20260928, time: 91.28, density: 0.65, quality: 'low' },
+              { seed: 20260928, time: 91.28, density: 0.2, quality: 'high' },
+              { seed: 20260928, time: 91.28, density: 1, quality: 'high' },
+            ].map((entry) => ({ ...entry, cloud: list[0] }))
+          : list.map((cloud) => ({ cloud, seed, time, density, quality: 'high' }))
+      for (const entry of cases) {
+        const { cloud, seed, time, density, quality } = entry
+        renderer.setQuality(quality)
         renderer.setCloud(cloud, true)
-        renderer.setWeather(
-          Number(document.querySelector('#seed').value),
-          1,
-          0.2,
-          Number(document.querySelector('#density').value),
-        )
-        renderer.time = Number(document.querySelector('#time').value)
+        renderer.setWeather(seed, 1, 0.2, density)
+        renderer.time = time
         const url = URL.createObjectURL(await renderer.capture())
         urls.push(url)
         const figure = document.createElement('figure')
         const caption = document.createElement('figcaption')
-        caption.textContent = `${cloud.name} · ${cloud.latin}`
+        caption.textContent = `${cloud.name} · seed ${seed} · ${time}s · ${density} · ${quality}`
         const image = new Image()
         image.alt = cloud.name
         image.src = url

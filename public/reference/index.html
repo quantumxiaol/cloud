@@ -68,7 +68,7 @@
     <header>
       <a href="../lab/">← 返回动态云实验</a>
       <h1>算法来源与许可</h1>
-      <p>cloud · 动态云实验的依赖、参考实现与资产出处。</p>
+      <p>cloud · 主页与动态云实验的参考实现、依赖和资产出处。</p>
     </header>
     <main lang="en">
       <p>
@@ -131,6 +131,13 @@
             does not reproduce Photon's complete lighting pipeline or imply identical visuals.
           </li>
           <li>
+            <code>src/shaders/cirrocumulus.glsl</code> also adapts Photon density, curl noise and
+            multi-scale erosion for the home atlas, using the same original noise texture. Separate
+            coverage, local ripple organisation, ground-view projection, a smooth height profile,
+            four-sample optical-depth integration and mipmap filtering are project adaptations. Home
+            lighting remains simplified; it is not the complete Photon renderer.
+          </li>
+          <li>
             Gradient-noise derivative credited upstream to
             <a href="https://iquilezles.org/articles/gradientnoise/">Inigo Quilez</a>.
           </li>
@@ -141,8 +148,8 @@
         </ul>
       </section>
       <p>
-        All reference assets are served locally; the experiment makes no runtime requests to GitHub
-        or other external asset hosts.
+        All reference assets are served locally; the home atlas and experiment make no runtime
+        requests to GitHub or other external asset hosts.
       </p>
     </main>
     <footer><a href="NOTICE.md" download>下载 Markdown 说明</a> · 许可证文件保持上游原文。</footer>
