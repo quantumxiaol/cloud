@@ -1,5 +1,6 @@
 import './style.css'
 import {
+  Color,
   Data3DTexture,
   HalfFloatType,
   LinearFilter,
@@ -22,7 +23,11 @@ import {
   ToneMappingEffect,
   ToneMappingMode,
 } from 'postprocessing'
-import { AerialPerspectiveEffect, PrecomputedTexturesLoader } from '@takram/three-atmosphere'
+import {
+  AerialPerspectiveEffect,
+  getSunLightColor,
+  PrecomputedTexturesLoader,
+} from '@takram/three-atmosphere'
 import { CloudsEffect, CloudLayers, type CloudsQualityPreset } from '@takram/three-clouds'
 import {
   DataTextureLoader,
@@ -45,9 +50,12 @@ let failed = false
 let mode: Mode = 'volume'
 let coverage = 0.32
 let pitch = 28
+const defaultSun = { elevation: 40, azimuth: -58 }
+const sunlight = { ...defaultSun }
 let invalidate = () => {}
 let applyMode = () => {}
 let applyQuality = () => {}
+let applySun = () => {}
 
 function fail(error: unknown) {
   failed = true
@@ -91,6 +99,24 @@ for (const id of ['wind', 'evolution', 'coverage', 'pitch']) {
     invalidate()
   })
 }
+function syncSunControls() {
+  for (const key of ['elevation', 'azimuth'] as const) {
+    $<HTMLInputElement>(`#sun-${key}`).value = String(sunlight[key])
+    $(`#sun-${key}-value`).textContent = `${sunlight[key]}°`
+  }
+  applySun()
+  invalidate()
+}
+for (const key of ['elevation', 'azimuth'] as const) {
+  $<HTMLInputElement>(`#sun-${key}`).addEventListener('input', (event) => {
+    sunlight[key] = Number((event.target as HTMLInputElement).value)
+    syncSunControls()
+  })
+}
+$('#reset-sun').addEventListener('click', () => {
+  Object.assign(sunlight, defaultSun)
+  syncSunControls()
+})
 $('#speed').addEventListener('change', () => {
   clock.speed = Number($<HTMLSelectElement>('#speed').value)
 })
@@ -145,14 +171,21 @@ async function start() {
   clouds.worldToECEFMatrix.copy(worldToECEF)
   aerial.worldToECEFMatrix.copy(worldToECEF)
   const photon = new PhotonEffect()
-  const sun = up
-    .clone()
-    .multiplyScalar(0.65)
-    .addScaledVector(east, -0.65)
-    .addScaledVector(north, 0.4)
-    .normalize()
-  clouds.sunDirection.copy(sun)
-  aerial.sunDirection.copy(sun)
+  const sun = new Vector3()
+  // East/up/north for Photon; rotate to ECEF for both Takram effects.
+  const localSun = photon.values.sunDirection.value
+  function setSunDirection(elevation: number, azimuth: number) {
+    const altitude = (elevation * Math.PI) / 180
+    const bearing = (azimuth * Math.PI) / 180
+    const horizontal = Math.cos(altitude)
+    localSun.set(horizontal * Math.sin(bearing), Math.sin(altitude), horizontal * Math.cos(bearing))
+    sun
+      .copy(up)
+      .multiplyScalar(localSun.y)
+      .addScaledVector(east, localSun.x)
+      .addScaledVector(north, localSun.z)
+      .normalize()
+  }
   const syncCloudComposition = () => {
     const enabled = mode === 'volume'
     aerial.overlay = enabled ? clouds.atmosphereOverlay : null
@@ -208,6 +241,35 @@ async function start() {
   ])
   Object.assign(aerial, atmosphere)
   Object.assign(clouds, atmosphere)
+  // Sample the same atmospheric transmittance LUT at the thin cloud's height.
+  // Calibrate against the original daylight brightness so adding the control
+  // preserves the familiar default look. Only recompute when controls change.
+  const thinCloudPosition = position.clone().addScaledVector(up, 6000)
+  setSunDirection(defaultSun.elevation, defaultSun.azimuth)
+  const daylightColor = getSunLightColor(
+    atmosphere.transmittanceTexture,
+    thinCloudPosition,
+    sun,
+    new Color(),
+  )
+  applySun = () => {
+    setSunDirection(sunlight.elevation, sunlight.azimuth)
+    document.body.classList.toggle('low-sun', sunlight.elevation < 12)
+    clouds.sunDirection.copy(sun)
+    aerial.sunDirection.copy(sun)
+    const light = getSunLightColor(
+      atmosphere.transmittanceTexture,
+      thinCloudPosition,
+      sun,
+      photon.values.sunLight.value,
+    )
+    light.setRGB(
+      (light.r / daylightColor.r) * 0.14,
+      (light.g / daylightColor.g) * 0.145,
+      (light.b / daylightColor.b) * 0.15,
+    )
+  }
+  applySun()
   clouds.localWeatherTexture = weather
   clouds.shapeTexture = shape
   clouds.shapeDetailTexture = detail

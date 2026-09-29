@@ -127,8 +127,10 @@
           <li>
             <code>src/lab/photon.frag.glsl</code> adapts the cirrus and cirrocumulus density
             functions and curl noise, retaining the original noise texture. Independent evolution
-            time, browser coordinates, a thin layer and simplified lighting are adaptations. This
-            does not reproduce Photon's complete lighting pipeline or imply identical visuals.
+            time, browser coordinates, a thin layer and simplified lighting are adaptations. Solar
+            elevation and azimuth drive all lab modes; thin-cloud sunlight colour is sampled from
+            Takram's atmospheric transmittance LUT. This does not reproduce Photon's complete
+            lighting pipeline or imply identical visuals.
           </li>
           <li>
             <code>src/shaders/cirrocumulus.glsl</code> also adapts Photon density, curl noise and

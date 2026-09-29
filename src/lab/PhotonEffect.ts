@@ -1,5 +1,5 @@
 import { BlendFunction, Effect } from 'postprocessing'
-import { Matrix4, Texture, Uniform } from 'three'
+import { Color, Matrix4, Texture, Uniform, Vector3 } from 'three'
 import shader from './photon.frag.glsl?raw'
 
 export class PhotonEffect extends Effect {
@@ -11,6 +11,8 @@ export class PhotonEffect extends Effect {
     evolutionTime: new Uniform(0),
     amount: new Uniform(0.55),
     cloudKind: new Uniform(0),
+    sunDirection: new Uniform(new Vector3(-0.65, 0.65, 0.4).normalize()),
+    sunLight: new Uniform(new Color(0.14, 0.145, 0.15)),
   }
   constructor() {
     super('PhotonThinClouds', shader, { blendFunction: BlendFunction.NORMAL })

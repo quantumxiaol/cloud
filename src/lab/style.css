@@ -122,6 +122,29 @@ input[type='range'] {
   margin: 10px 0 0;
   accent-color: #587f8b;
 }
+.sun-controls {
+  margin: 20px 0 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid #52798930;
+}
+.sun-controls legend {
+  padding-right: 10px;
+  font-size: 13px;
+}
+.range-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  color: #607985;
+  font-size: 10px;
+}
+.sun-hint {
+  margin: 10px 0;
+  color: #607985;
+  font-size: 11px;
+  line-height: 1.7;
+}
 .row {
   display: flex;
   align-items: center;
@@ -156,16 +179,26 @@ input[type='range'] {
   margin-top: 12px;
 }
 footer {
-  position: fixed;
-  bottom: 24px;
-  left: 4vw;
-  right: 4vw;
+  position: relative;
+  margin: 28px 4vw 24px;
   display: flex;
   justify-content: space-between;
   gap: 16px;
   font-size: 11px;
   color: #294e5d;
   text-shadow: 0 1px 10px white;
+}
+.low-sun header,
+.low-sun .intro,
+.low-sun footer {
+  color: #f1f5f4;
+  text-shadow: 0 1px 14px #15202c80;
+}
+.low-sun .brand span {
+  color: #b2d0d4;
+}
+.low-sun .tag {
+  border-color: #d2e4e460;
 }
 :focus-visible {
   outline: 2px solid #294e5d;

@@ -39,6 +39,16 @@
           >仰角 <output id="pitch-value">28°</output
           ><input id="pitch" type="range" min="8" max="80" step="1" value="28"
         /></label>
+        <fieldset class="sun-controls">
+          <legend>日光</legend>
+          <label for="sun-elevation">太阳高度 <output id="sun-elevation-value">40°</output></label>
+          <input id="sun-elevation" type="range" min="0" max="80" step="1" value="40" />
+          <div class="range-ends" aria-hidden="true"><span>日落</span><span>高照</span></div>
+          <label for="sun-azimuth">太阳方位 <output id="sun-azimuth-value">−58°</output></label>
+          <input id="sun-azimuth" type="range" min="-180" max="180" step="1" value="-58" />
+          <p class="sun-hint">0° 朝向画面前方。暂停时也可调整日光。</p>
+          <button id="reset-sun">恢复日光</button>
+        </fieldset>
         <div class="row">
           <label for="speed">时间流速</label
           ><select id="speed">

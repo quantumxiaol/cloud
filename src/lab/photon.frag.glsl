@@ -10,6 +10,9 @@ uniform float windTime;
 uniform float evolutionTime;
 uniform float amount;
 uniform int cloudKind;
+// East/up/north, matching the ray and density sheet below.
+uniform vec3 sunDirection;
+uniform vec3 sunLight;
 
 vec2 hash2(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
@@ -69,9 +72,12 @@ void mainImage(const in vec4 inputColor,const in vec2 uv,out vec4 outputColor) {
   float optical=density*220.0/max(ray.y,.15);
   float alpha=1.0-exp(-optical);
   float shadow=0.0;
-  for(int i=1;i<=5;i++) shadow+=densityAt(coord+vec2(-130.0,210.0)*float(i));
+  vec2 lightStep=sunDirection.xz*120.0/max(sunDirection.y,.12);
+  for(int i=1;i<=5;i++) shadow+=densityAt(coord+lightStep*float(i));
   // Approximate thin ice-cloud scattering in the atmosphere's linear HDR space.
-  vec3 light=mix(vec3(.055,.073,.10),vec3(.14,.145,.15),exp(-shadow*12.0));
+  float daylight=smoothstep(0.0,.57,sunDirection.y);
+  vec3 ambient=vec3(.055,.073,.10)*mix(.4,1.0,daylight);
+  vec3 light=mix(ambient,sunLight,exp(-shadow*12.0));
   float haze=exp(-length(coord)*.000008);
   outputColor=vec4(mix(inputColor.rgb,light,alpha*haze),inputColor.a);
 }
