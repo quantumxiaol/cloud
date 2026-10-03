@@ -1,14 +1,12 @@
 import './style.css'
 import { clouds, cloudById, familyLabels, type CloudFamily } from './data/clouds'
 import type { CloudRenderer, Quality } from './engine/CloudRenderer'
-import { dailySeed, parseState, serializeState } from './lib/state'
+import { dailySeed, isStateHash, parseState, serializeState } from './lib/state'
+import { requiredElement as $ } from './lib/dom'
 import { icon } from './lib/icons'
 
-const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
-  document.querySelector<T>(selector)!
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
-let state = parseState(location.hash)
-if (!location.hash.includes('paused=')) state.paused = reducedMotion.matches
+let state = parseState(location.hash, dailySeed(), reducedMotion.matches)
 let selected = cloudById(state.cloud)!
 let renderer: CloudRenderer | undefined
 let activeFilter = 'all'
@@ -446,8 +444,8 @@ window.addEventListener('keydown', (event) => {
   }
 })
 window.addEventListener('hashchange', () => {
-  if (!location.hash.includes('=')) return
-  state = parseState(location.hash)
+  if (!isStateHash(location.hash)) return
+  state = parseState(location.hash, dailySeed(), reducedMotion.matches)
   if (renderer) renderer.time = state.time
   selectCloud(state.cloud, true)
   syncWeather()

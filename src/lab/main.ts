@@ -12,6 +12,7 @@ import {
   RedFormat,
   RepeatWrapping,
   Scene,
+  type Texture,
   TextureLoader,
   Vector3,
   WebGLRenderer,
@@ -38,13 +39,15 @@ import {
 } from '@takram/three-geospatial'
 import { PhotonEffect } from './PhotonEffect'
 import { MotionClock } from './MotionClock'
+import { requiredElement as $ } from '../lib/dom'
+import { LOW_SUN_ELEVATION, SUN_REFERENCE_RGB } from './sunlight'
 
 type Mode = 'volume' | 'cirrus' | 'cirrocumulus'
-const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!
 const canvas = $<HTMLCanvasElement>('#sky')
 const status = $('#status')
 const pause = $<HTMLButtonElement>('#pause')
 const clock = new MotionClock()
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)')
 let ready = false
 let failed = false
 let mode: Mode = 'volume'
@@ -56,13 +59,27 @@ let invalidate = () => {}
 let applyMode = () => {}
 let applyQuality = () => {}
 let applySun = () => {}
+let disposeRendering = () => {}
+let generation = 0
+let contextLost = false
+let leaving = false
+
+function releaseRendering() {
+  disposeRendering()
+  disposeRendering = () => {}
+  invalidate = applyMode = applyQuality = applySun = () => {}
+}
+
+function setPlaybackDisabled(disabled: boolean) {
+  for (const id of ['pause', 'advance', 'reset']) $<HTMLButtonElement>(`#${id}`).disabled = disabled
+}
 
 function fail(error: unknown) {
   failed = true
   console.error('Cloud lab:', error)
   status.textContent = '天空未能加载，请重新加载再试。'
   $('#retry').hidden = false
-  for (const id of ['pause', 'advance', 'reset']) $<HTMLButtonElement>(`#${id}`).disabled = true
+  setPlaybackDisabled(true)
 }
 $('#retry').addEventListener('click', () => location.reload())
 
@@ -142,7 +159,7 @@ for (const button of document.querySelectorAll<HTMLButtonElement>('[data-mode]')
   })
 }
 
-async function start() {
+async function start(run: number) {
   const renderer = new WebGLRenderer({
     canvas,
     antialias: false,
@@ -207,6 +224,31 @@ async function start() {
   composer.addPass(new EffectPass(camera, photon))
   composer.addPass(new EffectPass(camera, new ToneMappingEffect({ mode: ToneMappingMode.AGX })))
 
+  let disposed = false
+  const textures = new Set<Texture>()
+  const ownTexture = <T extends Texture>(texture: T): T => {
+    // A load can finish after context loss or navigation. Release stale assets
+    // instead of attaching them to a newer rendering session.
+    if (disposed) texture.dispose()
+    else textures.add(texture)
+    return texture
+  }
+  const resize = () => {
+    applyQuality()
+    invalidate()
+  }
+  disposeRendering = () => {
+    if (disposed) return
+    disposed = true
+    renderer.setAnimationLoop(null)
+    window.removeEventListener('resize', resize)
+    clouds.events.removeEventListener('change', syncCloudComposition)
+    composer.dispose()
+    for (const texture of textures) texture.dispose()
+    textures.clear()
+    renderer.dispose()
+  }
+
   // Resolve from the HTML route, not a hashed JS chunk; works at /cloud/lab/ too.
   const base = new URL('../reference/', document.baseURI).href
   const textureLoader = new TextureLoader()
@@ -216,7 +258,7 @@ async function start() {
     texture.wrapS = texture.wrapT = RepeatWrapping
     texture.minFilter = LinearMipmapLinearFilter
     texture.magFilter = LinearFilter
-    return texture
+    return ownTexture(texture)
   }
   const load3D = async (name: string, size: number) => {
     const texture = await new DataTextureLoader(Data3DTexture, parseUint8Array, {
@@ -228,17 +270,27 @@ async function start() {
     texture.minFilter = texture.magFilter = LinearFilter
     texture.wrapS = texture.wrapT = texture.wrapR = RepeatWrapping
     texture.needsUpdate = true
-    return texture
+    return ownTexture(texture)
   }
+  const loadAtmosphere = () =>
+    new Promise<Awaited<ReturnType<PrecomputedTexturesLoader['loadAsync']>>>((resolve, reject) => {
+      // load() returns the texture handles before the asynchronous decode finishes.
+      // Own them immediately so partial failures and interrupted loads also dispose.
+      const loaded = new PrecomputedTexturesLoader()
+        .setType(renderer)
+        .load(`${base}atmosphere`, resolve, undefined, reject)
+      for (const texture of Object.values(loaded)) if (texture) ownTexture(texture)
+    })
   const [atmosphere, weather, shape, detail, turbulence, stbn, noise] = await Promise.all([
-    new PrecomputedTexturesLoader().setType(renderer).loadAsync(`${base}atmosphere`),
+    loadAtmosphere(),
     load2D('takram/local_weather.png'),
     load3D('shape.bin', 128),
     load3D('shape_detail.bin', 32),
     load2D('takram/turbulence.png'),
-    new STBNLoader().loadAsync(`${base}takram/stbn.bin`),
+    new STBNLoader().loadAsync(`${base}takram/stbn.bin`).then(ownTexture),
     load2D('photon/noise.png'),
   ])
+  if (disposed || run !== generation || leaving) return
   Object.assign(aerial, atmosphere)
   Object.assign(clouds, atmosphere)
   // Sample the same atmospheric transmittance LUT at the thin cloud's height.
@@ -254,7 +306,7 @@ async function start() {
   )
   applySun = () => {
     setSunDirection(sunlight.elevation, sunlight.azimuth)
-    document.body.classList.toggle('low-sun', sunlight.elevation < 12)
+    document.body.classList.toggle('low-sun', sunlight.elevation < LOW_SUN_ELEVATION)
     clouds.sunDirection.copy(sun)
     aerial.sunDirection.copy(sun)
     const light = getSunLightColor(
@@ -264,9 +316,9 @@ async function start() {
       photon.values.sunLight.value,
     )
     light.setRGB(
-      (light.r / daylightColor.r) * 0.14,
-      (light.g / daylightColor.g) * 0.145,
-      (light.b / daylightColor.b) * 0.15,
+      (light.r / daylightColor.r) * SUN_REFERENCE_RGB[0],
+      (light.g / daylightColor.g) * SUN_REFERENCE_RGB[1],
+      (light.b / daylightColor.b) * SUN_REFERENCE_RGB[2],
     )
   }
   applySun()
@@ -303,17 +355,8 @@ async function start() {
   }
   applyQuality()
   applyMode()
-  const resize = () => {
-    applyQuality()
-    invalidate()
-  }
   window.addEventListener('resize', resize)
-  canvas.addEventListener('webglcontextlost', (event) => {
-    event.preventDefault()
-    fail('WebGL context lost')
-  })
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) setPaused(true)
-  for (const id of ['pause', 'advance', 'reset']) $<HTMLButtonElement>(`#${id}`).disabled = false
+  setPlaybackDisabled(false)
   ready = true
   let previous = 0
   let count = 0
@@ -358,27 +401,61 @@ async function start() {
     }
     status.textContent = `${clock.paused ? '已暂停' : '实时'} · ${clock.elapsed.toFixed(1)} s${clock.paused ? '' : ` · ${fps} fps`}`
   })
-  window.addEventListener(
-    'pagehide',
-    () => {
-      renderer.setAnimationLoop(null)
-      window.removeEventListener('resize', resize)
-      composer.dispose()
-      for (const texture of [
-        weather,
-        shape,
-        detail,
-        turbulence,
-        stbn,
-        noise,
-        ...Object.values(atmosphere),
-      ])
-        texture?.dispose()
-      renderer.dispose()
-    },
-    { once: true },
-  )
 }
+
+function launch(message: string) {
+  releaseRendering()
+  ready = false
+  failed = false
+  $('#retry').hidden = true
+  status.textContent = message
+  setPlaybackDisabled(true)
+  const run = ++generation
+  start(run).catch((error: unknown) => {
+    if (run !== generation || leaving) return
+    releaseRendering()
+    fail(error)
+  })
+}
+
+function handleContextLost(event: Event) {
+  event.preventDefault()
+  contextLost = true
+  ready = false
+  generation++
+  releaseRendering()
+  status.textContent = '图形连接暂时中断，正在等待浏览器恢复。'
+  $('#retry').hidden = false
+  setPlaybackDisabled(true)
+}
+
+function handleContextRestored() {
+  if (!contextLost || leaving) return
+  contextLost = false
+  // Rebuild the complete postprocessing pipeline. UI parameters and MotionClock
+  // stay outside the rendering session, so restoration preserves the same sky.
+  launch('图形连接已恢复，正在重新加载天空…')
+}
+
+function handleReducedMotion(event: MediaQueryListEvent) {
+  if (event.matches) setPaused(true)
+}
+
+function teardown() {
+  leaving = true
+  generation++
+  releaseRendering()
+  canvas.removeEventListener('webglcontextlost', handleContextLost)
+  canvas.removeEventListener('webglcontextrestored', handleContextRestored)
+  reducedMotion.removeEventListener('change', handleReducedMotion)
+  window.removeEventListener('pagehide', teardown)
+}
+
+canvas.addEventListener('webglcontextlost', handleContextLost)
+canvas.addEventListener('webglcontextrestored', handleContextRestored)
+reducedMotion.addEventListener('change', handleReducedMotion)
+window.addEventListener('pagehide', teardown, { once: true })
+if (import.meta.hot) import.meta.hot.dispose(teardown)
 
 window.addEventListener('keydown', (event) => {
   if (event.code === 'Space' && ready && !failed && event.target === document.body) {
@@ -386,7 +463,8 @@ window.addEventListener('keydown', (event) => {
     setPaused(!clock.paused)
   }
 })
-start().catch(fail)
+setPaused(reducedMotion.matches)
+launch('正在加载天空…')
 window.addEventListener('pageshow', (event) => {
   if (event.persisted) location.reload()
 })

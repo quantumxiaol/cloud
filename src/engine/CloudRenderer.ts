@@ -39,7 +39,7 @@ export class CloudRenderer {
   private material: RawShaderMaterial
   private geometry = new PlaneGeometry(2, 2)
   private observer: ResizeObserver
-  private frame = 0
+  private animationFrameId = 0
   private previousFrame = 0
   private lastDraw = 0
   private sampleCount = 0
@@ -131,7 +131,7 @@ export class CloudRenderer {
     canvas.addEventListener('webglcontextrestored', this.handleContextRestored)
     document.addEventListener('visibilitychange', this.handleVisibility)
     this.resize()
-    this.frame = requestAnimationFrame(this.tick)
+    this.animationFrameId = requestAnimationFrame(this.tick)
   }
 
   get time() {
@@ -255,6 +255,8 @@ export class CloudRenderer {
   async capture(): Promise<Blob> {
     await this.assets
     if (!this.assetsReady || this.disposed) throw new Error('云形纹理尚未就绪')
+    // With preserveDrawingBuffer disabled, render and snapshot in the same task.
+    // Keep waits before render; yielding to another frame here can clear the buffer.
     this.renderer.render(this.scene, this.camera)
     return new Promise((resolve, reject) => {
       this.renderer.domElement.toBlob(
@@ -265,7 +267,7 @@ export class CloudRenderer {
   }
 
   private tick = (now: number) => {
-    this.frame = requestAnimationFrame(this.tick)
+    this.animationFrameId = requestAnimationFrame(this.tick)
     if (
       !this.assetsReady ||
       this.contextLost ||
@@ -338,7 +340,7 @@ export class CloudRenderer {
 
   dispose() {
     this.disposed = true
-    cancelAnimationFrame(this.frame)
+    cancelAnimationFrame(this.animationFrameId)
     this.observer.disconnect()
     document.removeEventListener('visibilitychange', this.handleVisibility)
     this.renderer.domElement.removeEventListener('webglcontextlost', this.handleContextLost)

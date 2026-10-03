@@ -25,4 +25,4 @@ The `/lab/` page is an experiment, not ten scientifically validated cloud preset
 - Gradient-noise derivative credited upstream to Inigo Quilez: https://iquilezles.org/articles/gradientnoise/
 - Hash credited upstream to Dave Hoskins: https://www.shadertoy.com/view/4djSRW
 
-All reference assets are served locally; the home atlas and experiment make no runtime requests to GitHub or other external asset hosts.
+All cloud-rendering reference assets are served locally; loading those assets makes no runtime requests to GitHub or other external texture hosts. The home atlas separately loads web fonts from Google Fonts, with system-font fallbacks.
